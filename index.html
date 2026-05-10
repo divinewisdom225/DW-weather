@@ -59,7 +59,7 @@
 </div>
 
 <script>
-    // REPLACE THE TEXT BELOW WITH YOUR REAL API KEY
+    // ⚠️ CRITICAL: PASTE YOUR API KEY BETWEEN THE QUOTES BELOW
     const apiKey = "PASTE_YOUR_KEY_HERE"; 
 
     async function updateWeather(city) {
@@ -78,7 +78,7 @@
             statusEl.innerText = data.weather[0].description;
         } catch (e) {
             cityNameEl.innerText = "ERROR";
-            statusEl.innerText = "Invalid City or API Key";
+            statusEl.innerText = "Check City or API Key";
         }
     }
     function handleSearch(event) {
