@@ -7,79 +7,38 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #000; color: white; font-family: sans-serif; overflow: hidden; height: 100vh; }
-        
-        #webcam {
-            position: fixed; right: 0; bottom: 0;
-            min-width: 100%; min-height: 100%;
-            z-index: -1; object-fit: cover;
-        }
-
-        .overlay {
-            height: 100vh; display: flex;
-            align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.4);
-        }
-
-        .weather-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 90%; max-width: 400px;
-            padding: 30px; border-radius: 30px;
-            text-align: center;
-        }
-
+        #webcam { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; z-index: -1; object-fit: cover; }
+        .overlay { height: 100vh; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
+        .weather-card { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.2); width: 90%; max-width: 400px; padding: 30px; border-radius: 30px; text-align: center; }
         #clock { font-size: 2.5rem; color: #00f2fe; margin-bottom: 10px; font-weight: bold; }
-        input { 
-            width: 100%; padding: 12px; border-radius: 50px; 
-            border: none; margin-bottom: 20px; text-align: center; 
-            background: rgba(255,255,255,0.2); color: white; outline: none;
-        }
+        input { width: 100%; padding: 12px; border-radius: 50px; border: none; margin-bottom: 20px; text-align: center; background: rgba(255,255,255,0.2); color: white; outline: none; }
         .temp { font-size: 70px; font-weight: 200; }
         .footer { margin-top: 20px; font-weight: bold; letter-spacing: 2px; color: #00f2fe; }
-        
-        /* Logo Styling */
         .logo-img { width: 100px; margin-bottom: 10px; border-radius: 50%; }
     </style>
 </head>
 <body>
-
     <video id="webcam" autoplay playsinline muted></video>
-
     <div class="overlay">
         <div class="weather-card">
-            <img src="logo.png" alt="SkyCast Logo" class="logo-img" onerror="this.style.display='none'">
-            
+            <img src="file_000000007838720ab173457ce932878f.png" alt="SkyCast Logo" class="logo-img">
             <div id="clock">00:00:00</div>
-            
             <input type="text" id="cityInput" placeholder="Enter City..." onkeypress="handleSearch(event)">
-            
             <h2 id="cityName">SKYCAST READY</h2>
             <div class="temp"><span id="tempVal">--</span>°C</div>
             <p id="status">PRESS ENTER TO SEARCH</p>
-            
             <div class="footer">DIVINE WISDOM</div>
         </div>
     </div>
-
 <script>
     const apiKey = "15ef46d9ff8e9782d01c408ca831a3df"; 
-
-    function updateTime() {
-        const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString();
-    }
-    setInterval(updateTime, 1000);
-    updateTime();
-
+    function updateTime() { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }
+    setInterval(updateTime, 1000); updateTime();
     async function startCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-            document.getElementById('webcam').srcObject = stream;
-        } catch (err) { console.log("Camera off"); }
+        try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        document.getElementById('webcam').srcObject = stream; } catch (err) { console.log("Camera off"); }
     }
     startCamera();
-
     async function updateWeather(city) {
         try {
             const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`);
@@ -87,17 +46,9 @@
             document.getElementById('cityName').innerText = data.name.toUpperCase();
             document.getElementById('tempVal').innerText = Math.round(data.main.temp);
             document.getElementById('status').innerText = data.weather[0].description.toUpperCase();
-        } catch (e) {
-            document.getElementById('status').innerText = "KEY ACTIVATING... WAIT 1 HOUR";
-        }
+        } catch (e) { document.getElementById('status').innerText = "KEY ACTIVATING..."; }
     }
-
-    function handleSearch(event) {
-        if (event.key === "Enter") {
-            let city = document.getElementById('cityInput').value;
-            if (city.trim() !== "") updateWeather(city);
-        }
-    }
+    function handleSearch(event) { if (event.key === "Enter") { let city = document.getElementById('cityInput').value; if (city.trim() !== "") updateWeather(city); } }
 </script>
 </body>
 </html>
