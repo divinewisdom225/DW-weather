@@ -6,81 +6,92 @@
     <title>SkyCast by Divine Wisdom</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #1a1a2e;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: sans-serif;
-            color: white;
+        body { background: #000; color: white; font-family: sans-serif; overflow: hidden; height: 100vh; }
+        
+        #webcam {
+            position: fixed; right: 0; bottom: 0;
+            min-width: 100%; min-height: 100%;
+            z-index: -1; object-fit: cover;
         }
+
+        .overlay {
+            height: 100vh; display: flex;
+            align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.4);
+        }
+
         .weather-card {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 90%;
-            max-width: 400px;
-            padding: 30px;
-            border-radius: 30px;
+            width: 90%; max-width: 400px;
+            padding: 30px; border-radius: 30px;
             text-align: center;
         }
-        .search-box {
-            background: rgba(0,0,0,0.2);
-            border-radius: 50px;
-            padding: 5px 15px;
-            margin-bottom: 20px;
-            display: flex;
+
+        #clock { font-size: 2.5rem; color: #00f2fe; margin-bottom: 10px; font-weight: bold; }
+        input { 
+            width: 100%; padding: 12px; border-radius: 50px; 
+            border: none; margin-bottom: 20px; text-align: center; 
+            background: rgba(255,255,255,0.2); color: white; outline: none;
         }
-        input {
-            background: transparent;
-            border: none;
-            outline: none;
-            color: white;
-            padding: 10px;
-            width: 100%;
-            font-size: 16px;
-        }
-        .temp { font-size: 80px; font-weight: 100; }
-        .city { font-size: 24px; margin-bottom: 10px; }
-        .footer { margin-top: 20px; font-size: 12px; color: #00f2fe; font-weight: bold; }
+        .temp { font-size: 70px; font-weight: 200; }
+        .footer { margin-top: 20px; font-weight: bold; letter-spacing: 2px; color: #00f2fe; }
+        
+        /* Logo Styling */
+        .logo-img { width: 100px; margin-bottom: 10px; border-radius: 50%; }
     </style>
 </head>
 <body>
 
-<div class="weather-card">
-    <div class="search-box">
-        <input type="text" id="cityInput" placeholder="Enter city..." onkeypress="handleSearch(event)">
+    <video id="webcam" autoplay playsinline muted></video>
+
+    <div class="overlay">
+        <div class="weather-card">
+            <img src="logo.png" alt="SkyCast Logo" class="logo-img" onerror="this.style.display='none'">
+            
+            <div id="clock">00:00:00</div>
+            
+            <input type="text" id="cityInput" placeholder="Enter City..." onkeypress="handleSearch(event)">
+            
+            <h2 id="cityName">SKYCAST READY</h2>
+            <div class="temp"><span id="tempVal">--</span>°C</div>
+            <p id="status">PRESS ENTER TO SEARCH</p>
+            
+            <div class="footer">DIVINE WISDOM</div>
+        </div>
     </div>
-    <div class="city" id="cityName">READY</div>
-    <div id="status">Enter city name</div>
-    <div class="temp"><span id="tempVal">--</span>°C</div>
-    <div class="footer">POWERED BY DIVINE WISDOM</div>
-</div>
 
 <script>
-    // ⚠️ CRITICAL: PASTE YOUR API KEY BETWEEN THE QUOTES BELOW
-    const apiKey = "848170642605f343e1b3dab28d95fc03"; 
+    const apiKey = "15ef46d9ff8e9782d01c408ca831a3df"; 
+
+    function updateTime() {
+        const now = new Date();
+        document.getElementById('clock').innerText = now.toLocaleTimeString();
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+            document.getElementById('webcam').srcObject = stream;
+        } catch (err) { console.log("Camera off"); }
+    }
+    startCamera();
 
     async function updateWeather(city) {
-        const cityNameEl = document.getElementById('cityName');
-        const tempEl = document.getElementById('tempVal');
-        const statusEl = document.getElementById('status');
-        cityNameEl.innerText = "LOADING...";
         try {
-            const response = await fetch(
-                `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`
-            );
-            if (!response.ok) throw new Error();
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`);
             const data = await response.json();
-            cityNameEl.innerText = data.name;
-            tempEl.innerText = Math.round(data.main.temp);
-            statusEl.innerText = data.weather[0].description;
+            document.getElementById('cityName').innerText = data.name.toUpperCase();
+            document.getElementById('tempVal').innerText = Math.round(data.main.temp);
+            document.getElementById('status').innerText = data.weather[0].description.toUpperCase();
         } catch (e) {
-            cityNameEl.innerText = "ERROR";
-            statusEl.innerText = "Check City or API Key";
+            document.getElementById('status').innerText = "KEY ACTIVATING... WAIT 1 HOUR";
         }
     }
+
     function handleSearch(event) {
         if (event.key === "Enter") {
             let city = document.getElementById('cityInput').value;
