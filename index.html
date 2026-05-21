@@ -26,8 +26,26 @@
             width: 92%; 
             max-width: 420px; 
             border: 1px solid rgba(255,255,255,0.08); 
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); 
-        } 
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        /* Scrollbar styling */
+        .weather-card::-webkit-scrollbar {
+            width: 6px;
+        }
+        .weather-card::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        .weather-card::-webkit-scrollbar-thumb {
+            background: rgba(0,242,254,0.3);
+            border-radius: 10px;
+        }
+        .weather-card::-webkit-scrollbar-thumb:hover {
+            background: rgba(0,242,254,0.6);
+        }
         
         /* Input & Clock Header */
         .card-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 16px; }
@@ -43,7 +61,7 @@
 
         /* Main Temperature Block */
         .main-weather-row { display: flex; align-items: center; justify-content: flex-start; gap: 15px; margin-bottom: 8px; }
-        .weather-icon-main { font-size: 55px; line-height: 1; }
+        .weather-icon-main { font-size: 55px; line-height: 1; animation: float 3s ease-in-out infinite; }
         .temp-display { font-size: 64px; font-weight: 400; display: flex; align-items: flex-start; } 
         .temp-unit { font-size: 24px; margin-left: 4px; margin-top: 8px; color: #e3e3e3; }
 
@@ -52,20 +70,54 @@
         .hi-low-text { font-size: 14px; color: #c4c7c5; text-align: left; margin-bottom: 20px; }
 
         /* Navigation Pills */
-        .pills-row { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
-        .pill { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; background: transparent; color: #e3e3e3; border: none; cursor: pointer; transition: all 0.3s ease; }
+        .pills-row { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; overflow-x: auto; }
+        .pill { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; background: transparent; color: #e3e3e3; border: none; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; }
+        .pill:hover { background: rgba(0,242,254,0.1); }
         .pill.active { background: #004a77; color: #c2e7ff; }
 
         /* Hourly Forecast Grid */
-        .hourly-forecast { display: flex; justify-content: space-between; margin-bottom: 15px; }
-        .hourly-item { display: flex; flex-direction: column; align-items: center; width: 22%; }
+        .hourly-forecast { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; }
+        .hourly-item { display: flex; flex-direction: column; align-items: center; min-width: 70px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 12px; transition: all 0.3s ease; }
+        .hourly-item:hover { background: rgba(0,242,254,0.1); transform: translateY(-2px); }
         .hourly-time { font-size: 13px; color: #e3e3e3; margin-bottom: 8px; font-weight: 500; }
         .hourly-icon { font-size: 24px; margin-bottom: 4px; }
         .hourly-pop { font-size: 11px; color: #7cb3f9; font-weight: 600; margin-bottom: 6px; }
         .hourly-temp { font-size: 14px; color: #fff; font-weight: 500; }
 
-        /* Auto-refresh indicator */ 
-        .refresh-label { font-size: 10px; color: #8e918f; text-align: center; margin-top: 15px; } 
+        /* 14-Day Forecast */
+        .forecast-14day { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px; }
+        .forecast-14day-title { font-size: 14px; font-weight: 600; color: #e3e3e3; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .daily-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; cursor: pointer; }
+        .daily-item:hover { background: rgba(0,242,254,0.1); border-color: rgba(0,242,254,0.3); }
+        .daily-date { font-size: 13px; color: #c4c7c5; font-weight: 500; min-width: 60px; }
+        .daily-icon { font-size: 20px; }
+        .daily-condition { font-size: 12px; color: #a0a0a0; min-width: 60px; text-align: center; }
+        .daily-temps { font-size: 12px; color: #e3e3e3; font-weight: 500; min-width: 80px; text-align: right; }
+
+        /* Auto-refresh indicator */
+        .refresh-label { font-size: 11px; color: #00f2fe; text-align: center; margin-top: 15px; font-weight: 500; }
+
+        /* Footer - Powered by */
+        .footer { text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .powered-by { font-size: 10px; color: #8e918f; }
+        .powered-by a { color: #00f2fe; text-decoration: none; transition: all 0.3s ease; font-weight: 600; }
+        .powered-by a:hover { color: #00f2fe; text-decoration: underline; }
+
+        /* Weather Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes rain {
+            0% { transform: translateY(-10px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(10px); opacity: 0; }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
 
         /* Responsive Design */
         @media (max-width: 480px) {
@@ -73,6 +125,8 @@
             .temp-display { font-size: 48px; }
             .weather-icon-main { font-size: 40px; }
             .condition-title { font-size: 18px; }
+            .pills-row { gap: 4px; }
+            .pill { padding: 6px 12px; font-size: 12px; }
         }
     </style> 
 </head> 
@@ -109,15 +163,26 @@
                 <div class="hourly-item"><span class="hourly-time">--</span><span class="hourly-icon">▪️</span><span class="hourly-pop">0%</span><span class="hourly-temp">--°</span></div>
                 <div class="hourly-item"><span class="hourly-time">--</span><span class="hourly-icon">▪️</span><span class="hourly-pop">0%</span><span class="hourly-temp">--°</span></div>
             </div>
-            
-            <p id="refreshLabel" class="refresh-label"></p> 
+
+            <!-- 14-Day Forecast -->
+            <div class="forecast-14day">
+                <div class="forecast-14day-title">14-Day Forecast</div>
+                <div id="forecast14dayContainer"></div>
+            </div>
+
+            <div class="refresh-label" id="refreshLabel"></div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p class="powered-by">🚀 Powered by <a href="https://github.com/divinewisdom225" target="_blank">Divine Wisdom</a></p>
+            </div>
         </div> 
     </div> 
 <script> 
     // API key from OpenWeatherMap
     const apiKey = "848170642605f343e1b3dab28d95fc03";
     
-    const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minute auto-refresh loop
+    const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minute auto-refresh loop
     let lastCity = ""; 
     let refreshTimer = null; 
     let forecastData = null;
@@ -211,26 +276,34 @@
             // Set condition text
             if (mainCondition === "Thunderstorm") {
                 status.innerText = "Thunderstorm";
+                iconEl.style.animation = "shake 0.3s infinite";
             } else if (mainCondition === "Rain" || mainCondition === "Drizzle") {
                 status.innerText = "Rain";
+                iconEl.style.animation = "rain 1s infinite";
             } else if (mainCondition === "Clouds") {
-                status.innerText = description.charAt(0).toUpperCase() + description.slice(1);
+                status.innerText = "Cloudy";
+                iconEl.style.animation = "float 3s ease-in-out infinite";
             } else if (mainCondition === "Clear") {
                 status.innerText = "Clear";
+                iconEl.style.animation = "float 3s ease-in-out infinite";
             } else if (mainCondition === "Snow") {
                 status.innerText = "Snow";
+                iconEl.style.animation = "float 3s ease-in-out infinite";
             } else {
                 status.innerText = mainCondition;
+                iconEl.style.animation = "float 3s ease-in-out infinite";
             }
             
             // Set emoji with icon code
             iconEl.innerText = getWeatherEmoji(mainCondition, mainIcon);
+            document.getElementById('refreshLabel').innerText = `✓ Updated just now • Auto-refresh every 10 min`;
 
             // Fetch forecast data
             const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`);
             if (forecastResponse.ok) {
                 forecastData = await forecastResponse.json();
                 displayForecast(currentForecastTab);
+                display14DayForecast();
             } else {
                 console.error("Forecast API error:", forecastResponse.status);
             }
@@ -243,7 +316,7 @@
         } 
     } 
 
-    // Display forecast based on selected tab
+    // Display hourly forecast based on selected tab
     function displayForecast(tab) {
         currentForecastTab = tab;
         
@@ -252,7 +325,7 @@
         const hourlyContainer = document.getElementById('hourlyContainer');
         hourlyContainer.innerHTML = "";
 
-        const forecastCount = Math.min(4, forecastData.list.length);
+        const forecastCount = Math.min(8, forecastData.list.length);
         
         for (let i = 0; i < forecastCount; i++) {
             const block = forecastData.list[i];
@@ -292,6 +365,47 @@
         document.querySelectorAll('.pill').forEach((pill, index) => {
             pill.classList.remove('active');
             if (index === tab) pill.classList.add('active');
+        });
+    }
+
+    // Display 14-day forecast
+    function display14DayForecast() {
+        if (!forecastData) return;
+
+        const dailyMap = {};
+        
+        // Group forecast by day
+        forecastData.list.forEach(item => {
+            const date = new Date(item.dt * 1000);
+            const day = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            
+            if (!dailyMap[day]) {
+                dailyMap[day] = {
+                    temps: [],
+                    icon: item.weather[0].icon,
+                    condition: item.weather[0].main
+                };
+            }
+            dailyMap[day].temps.push(item.main.temp);
+        });
+
+        const container = document.getElementById('forecast14dayContainer');
+        container.innerHTML = "";
+
+        Object.entries(dailyMap).slice(0, 14).forEach(([day, data]) => {
+            const high = Math.round(Math.max(...data.temps));
+            const low = Math.round(Math.min(...data.temps));
+            const emoji = getWeatherEmoji(data.condition, data.icon);
+
+            const itemHTML = `
+                <div class="daily-item">
+                    <div class="daily-date">${day}</div>
+                    <div class="daily-icon">${emoji}</div>
+                    <div class="daily-condition">${data.condition}</div>
+                    <div class="daily-temps">${high}° / ${low}°</div>
+                </div>
+            `;
+            container.innerHTML += itemHTML;
         });
     }
 
