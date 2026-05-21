@@ -53,7 +53,7 @@
 
         /* Navigation Pills */
         .pills-row { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
-        .pill { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; background: transparent; color: #e3e3e3; border: none; cursor: pointer; }
+        .pill { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; background: transparent; color: #e3e3e3; border: none; cursor: pointer; transition: all 0.3s ease; }
         .pill.active { background: #004a77; color: #c2e7ff; }
 
         /* Hourly Forecast Grid */
@@ -65,10 +65,7 @@
         .hourly-temp { font-size: 14px; color: #fff; font-weight: 500; }
 
         /* Auto-refresh indicator */ 
-        .refresh-bar-wrap { background: rgba(255,255,255,0.05); border-radius: 50px; height: 3px; overflow: hidden; margin-top: 15px; } 
-        .refresh-bar { height: 100%; width: 100%; background: #00f2fe; border-radius: 50px; transform-origin: left; animation: shrink 60s linear forwards; } 
-        @keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } } 
-        .refresh-label { font-size: 10px; color: #8e918f; text-align: center; margin-top: 4px; } 
+        .refresh-label { font-size: 10px; color: #8e918f; text-align: center; margin-top: 15px; } 
 
         /* Responsive Design */
         @media (max-width: 480px) {
@@ -101,9 +98,9 @@
             <div id="hiLow" class="hi-low-text">High: --° Low: --°</div>
 
             <div class="pills-row">
-                <button class="pill active">Temperature</button>
-                <button class="pill">Precipitation</button>
-                <button class="pill">Wind</button>
+                <button class="pill active" onclick="toggleForecast(0)">Temperature</button>
+                <button class="pill" onclick="toggleForecast(1)">Precipitation</button>
+                <button class="pill" onclick="toggleForecast(2)">Wind</button>
             </div>
 
             <div id="hourlyContainer" class="hourly-forecast">
@@ -113,9 +110,6 @@
                 <div class="hourly-item"><span class="hourly-time">--</span><span class="hourly-icon">▪️</span><span class="hourly-pop">0%</span><span class="hourly-temp">--°</span></div>
             </div>
             
-            <div id="refreshBarWrap" class="refresh-bar-wrap" style="display:none;"> 
-                <div id="refreshBar" class="refresh-bar"></div> 
-            </div> 
             <p id="refreshLabel" class="refresh-label"></p> 
         </div> 
     </div> 
@@ -123,29 +117,37 @@
     // API key from OpenWeatherMap
     const apiKey = "848170642605f343e1b3dab28d95fc03";
     
-    // Validate API key on load
-    function validateApiKey() {
-        const errorEl = document.getElementById('errorMsg');
-        if (!apiKey || apiKey.length === 0) {
-            errorEl.innerText = "⚠️ API key not configured.";
-            console.error("OpenWeatherMap API key is not configured!");
-            return false;
-        }
-        return true;
-    }
-    
-    validateApiKey();
-    
-    const REFRESH_INTERVAL_MS = 1 * 60 * 1000; // 1 minute auto-refresh loop
+    const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minute auto-refresh loop
     let lastCity = ""; 
     let refreshTimer = null; 
-    let nextRefreshAt = null; 
+    let forecastData = null;
+    let currentForecastTab = 0; // 0 = Temperature, 1 = Precipitation, 2 = Wind
 
-    // Helper map to convert OpenWeather conditions into distinct UI emojis
-    function getWeatherEmoji(condition) {
+    // Comprehensive weather emoji mapping
+    function getWeatherEmoji(condition, iconCode) {
+        // Use OpenWeather icon codes for more accuracy
+        if (iconCode) {
+            const code = iconCode.substring(0, 2);
+            const d = iconCode.charAt(2) === 'd' ? 'day' : 'night';
+            
+            if (code === '01') return d === 'day' ? '☀️' : '🌙';
+            if (code === '02') return d === 'day' ? '🌤️' : '🌥️';
+            if (code === '03') return '☁️';
+            if (code === '04') return '☁️';
+            if (code === '09') return '🌧️';
+            if (code === '10') return '🌦️';
+            if (code === '11') return '⛈️';
+            if (code === '13') return '❄️';
+            if (code === '50') return '🌫️';
+        }
+
+        // Fallback to condition text
         if (condition === "Thunderstorm") return "⛈️";
         if (condition === "Rain" || condition === "Drizzle") return "🌧️";
         if (condition === "Clouds") return "☁️";
+        if (condition === "Clear") return "☀️";
+        if (condition === "Snow") return "❄️";
+        if (condition === "Mist" || condition === "Smoke" || condition === "Haze" || condition === "Dust" || condition === "Fog" || condition === "Sand" || condition === "Ash" || condition === "Squall" || condition === "Tornado") return "🌫️";
         return "☀️";
     }
 
@@ -153,13 +155,6 @@
     function updateTime() { 
         const now = new Date(); 
         document.getElementById('clock').innerText = now.toLocaleTimeString(); 
-        
-        if (nextRefreshAt && lastCity) { 
-            const remaining = Math.max(0, Math.round((nextRefreshAt - Date.now()) / 1000)); 
-            const mins = Math.floor(remaining / 60); 
-            const secs = remaining % 60; 
-            document.getElementById('refreshLabel').innerText = `Auto-refreshing in ${mins}:${secs.toString().padStart(2, '0')}`; 
-        } 
     } 
     setInterval(updateTime, 1000); 
     updateTime(); 
@@ -171,19 +166,17 @@
             document.getElementById('webcam').srcObject = stream; 
         } catch (err) { 
             console.warn("Camera access denied or not available:", err.message); 
-            // Don't show alert to user - camera is optional
         } 
     } 
     startCamera(); 
 
-    // 3. CORE PROCESSING LOGIC (Google Style)
+    // 3. CORE PROCESSING LOGIC
     async function updateWeather(city) { 
         const status = document.getElementById('status'); 
         const errorEl = document.getElementById('errorMsg');
         errorEl.innerText = "";
         status.innerText = "FETCHING..."; 
         
-        // Validate input
         if (!city || city.trim().length === 0) {
             errorEl.innerText = "❌ Please enter a valid city name";
             status.innerText = "READY";
@@ -191,19 +184,18 @@
         }
         
         try {
-            // Validate API key before making request
             if (!apiKey || apiKey.length === 0) {
                 throw new Error("API key not configured");
             }
             
-            // Step A: Fetch current conditions to fill the main view block
+            // Fetch current weather
             const currentResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`); 
             if (!currentResponse.ok) {
                 throw new Error(`City not found or API error: ${currentResponse.status}`);
             }
             const currentData = await currentResponse.json(); 
             
-            // Build dynamic header tracking text (e.g. Thursday • Ibadan)
+            // Build dynamic header
             const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
             document.getElementById('locationHeader').innerText = `${currentDayName} • ${currentData.name}`; 
             
@@ -212,54 +204,38 @@
             document.getElementById('hiLow').innerText = `High: ${Math.round(currentData.main.temp_max)}° Low: ${Math.round(currentData.main.temp_min)}°`;
 
             const mainCondition = currentData.weather[0].main;
+            const mainIcon = currentData.weather[0].icon;
             const description = currentData.weather[0].description;
             const iconEl = document.getElementById('mainIcon');
 
+            // Set condition text
             if (mainCondition === "Thunderstorm") {
                 status.innerText = "Thunderstorm";
             } else if (mainCondition === "Rain" || mainCondition === "Drizzle") {
                 status.innerText = "Rain";
             } else if (mainCondition === "Clouds") {
                 status.innerText = description.charAt(0).toUpperCase() + description.slice(1);
+            } else if (mainCondition === "Clear") {
+                status.innerText = "Clear";
+            } else if (mainCondition === "Snow") {
+                status.innerText = "Snow";
             } else {
                 status.innerText = mainCondition;
             }
-            iconEl.innerText = getWeatherEmoji(mainCondition);
+            
+            // Set emoji with icon code
+            iconEl.innerText = getWeatherEmoji(mainCondition, mainIcon);
 
-            // Step B: Fetch future timeline data to populate the hourly blocks automatically
+            // Fetch forecast data
             const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`);
             if (forecastResponse.ok) {
-                const forecastData = await forecastResponse.json();
-                const hourlyContainer = document.getElementById('hourlyContainer');
-                hourlyContainer.innerHTML = ""; // Wipe the fallback cards clean
-
-                // Take the first 4 timeline blocks (spaced out by 3 hours each from OpenWeather)
-                const forecastCount = Math.min(4, forecastData.list.length);
-                for (let i = 0; i < forecastCount; i++) {
-                    const block = forecastData.list[i];
-                    const futureTime = new Date(block.dt * 1000).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
-                    const futureTemp = Math.round(block.main.temp);
-                    const futureCond = block.weather[0].main;
-                    
-                    // OpenWeather uses 'pop' (Probability of Precipitation) values from 0 to 1.
-                    const rainProbability = block.pop ? Math.round(block.pop * 100) : 0; 
-
-                    // Construct a Google-accurate HTML element layout dynamically
-                    const itemHTML = `
-                        <div class="hourly-item">
-                            <span class="hourly-time">${futureTime}</span>
-                            <span class="hourly-icon">${getWeatherEmoji(futureCond)}</span>
-                            <span class="hourly-pop" style="visibility: ${rainProbability > 0 ? 'visible' : 'hidden'}">${rainProbability}%</span>
-                            <span class="hourly-temp">${futureTemp}°</span>
-                        </div>
-                    `;
-                    hourlyContainer.innerHTML += itemHTML;
-                }
+                forecastData = await forecastResponse.json();
+                displayForecast(currentForecastTab);
             } else {
                 console.error("Forecast API error:", forecastResponse.status);
             }
 
-            showRefreshBar(); 
+            status.innerText = mainCondition;
         } catch (e) { 
             status.innerText = "ERROR"; 
             errorEl.innerText = `❌ ${e.message}`;
@@ -267,23 +243,68 @@
         } 
     } 
 
+    // Display forecast based on selected tab
+    function displayForecast(tab) {
+        currentForecastTab = tab;
+        
+        if (!forecastData) return;
+
+        const hourlyContainer = document.getElementById('hourlyContainer');
+        hourlyContainer.innerHTML = "";
+
+        const forecastCount = Math.min(4, forecastData.list.length);
+        
+        for (let i = 0; i < forecastCount; i++) {
+            const block = forecastData.list[i];
+            const futureTime = new Date(block.dt * 1000).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+            const futureTemp = Math.round(block.main.temp);
+            const futureCond = block.weather[0].main;
+            const futureIcon = block.weather[0].icon;
+            const windSpeed = Math.round(block.wind.speed);
+            const rainProbability = block.pop ? Math.round(block.pop * 100) : 0;
+
+            let displayValue = "";
+            let unit = "";
+
+            if (tab === 0) { // Temperature
+                displayValue = futureTemp;
+                unit = "°";
+            } else if (tab === 1) { // Precipitation
+                displayValue = rainProbability;
+                unit = "%";
+            } else if (tab === 2) { // Wind
+                displayValue = windSpeed;
+                unit = "m/s";
+            }
+
+            const itemHTML = `
+                <div class="hourly-item">
+                    <span class="hourly-time">${futureTime}</span>
+                    <span class="hourly-icon">${getWeatherEmoji(futureCond, futureIcon)}</span>
+                    <span class="hourly-pop">${displayValue}${unit}</span>
+                    <span class="hourly-temp">${futureCond}</span>
+                </div>
+            `;
+            hourlyContainer.innerHTML += itemHTML;
+        }
+
+        // Update pill buttons
+        document.querySelectorAll('.pill').forEach((pill, index) => {
+            pill.classList.remove('active');
+            if (index === tab) pill.classList.add('active');
+        });
+    }
+
+    function toggleForecast(tab) {
+        displayForecast(tab);
+    }
+
     // 4. AUTOMATED MAINTENANCE TIMER
     function startAutoRefresh(city) { 
         clearInterval(refreshTimer); 
         refreshTimer = setInterval(() => { 
             if (lastCity) updateWeather(lastCity); 
         }, REFRESH_INTERVAL_MS); 
-        nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS; 
-    } 
-
-    function showRefreshBar() { 
-        const wrap = document.getElementById('refreshBarWrap'); 
-        const bar = document.getElementById('refreshBar'); 
-        wrap.style.display = 'block'; 
-        
-        const newBar = bar.cloneNode(true); 
-        wrap.replaceChild(newBar, bar); 
-        nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS; 
     } 
 
     function handleSearch(event) { 
