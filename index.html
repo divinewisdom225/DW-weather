@@ -120,17 +120,14 @@
         </div> 
     </div> 
 <script> 
-    // Get API key from environment variable or localStorage
-    let apiKey = localStorage.getItem('openweathermap_key') || "YOUR_API_KEY_HERE";
+    // API key from OpenWeatherMap
+    const apiKey = "848170642605f343e1b3dab28d95fc03";
     
     // Validate API key on load
     function validateApiKey() {
         const errorEl = document.getElementById('errorMsg');
-        if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
-            errorEl.innerHTML = `
-                ⚠️ API key not configured. 
-                <br><small>Open browser console and run: <code>localStorage.setItem('openweathermap_key', 'YOUR_KEY')</code></small>
-            `;
+        if (!apiKey || apiKey.length === 0) {
+            errorEl.innerText = "⚠️ API key not configured.";
             console.error("OpenWeatherMap API key is not configured!");
             return false;
         }
@@ -195,8 +192,8 @@
         
         try {
             // Validate API key before making request
-            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
-                throw new Error("API key not configured. Set it using localStorage.setItem('openweathermap_key', 'YOUR_KEY')");
+            if (!apiKey || apiKey.length === 0) {
+                throw new Error("API key not configured");
             }
             
             // Step A: Fetch current conditions to fill the main view block
