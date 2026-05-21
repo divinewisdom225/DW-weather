@@ -69,6 +69,14 @@
         .refresh-bar { height: 100%; width: 100%; background: #00f2fe; border-radius: 50px; transform-origin: left; animation: shrink 60s linear forwards; } 
         @keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } } 
         .refresh-label { font-size: 10px; color: #8e918f; text-align: center; margin-top: 4px; } 
+
+        /* Responsive Design */
+        @media (max-width: 480px) {
+            .weather-card { width: 95%; max-width: 100%; padding: 16px; }
+            .temp-display { font-size: 48px; }
+            .weather-icon-main { font-size: 40px; }
+            .condition-title { font-size: 18px; }
+        }
     </style> 
 </head> 
 <body> 
@@ -77,7 +85,8 @@
         <div class="weather-card"> 
             <div class="card-header">
                 <div id="clock">00:00:00</div> 
-                <input type="text" id="cityInput" placeholder="Search city..." onkeypress="handleSearch(event)"> 
+                <label for="cityInput" style="display:none;">Search city</label>
+                <input type="text" id="cityInput" placeholder="Search city..." onkeypress="handleSearch(event)" aria-label="Search for a city"> 
                 <div id="errorMsg" class="error-message"></div>
             </div>
 
@@ -111,15 +120,24 @@
         </div> 
     </div> 
 <script> 
-    // Get API key from environment variable or show error
-    const apiKey = "YOUR_API_KEY_HERE"; // Replace with environment variable in production
+    // Get API key from environment variable or localStorage
+    let apiKey = localStorage.getItem('openweathermap_key') || "YOUR_API_KEY_HERE";
     
-    // Validate API key
-    if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+    // Validate API key on load
+    function validateApiKey() {
         const errorEl = document.getElementById('errorMsg');
-        errorEl.innerText = "⚠️ API key not configured. Check setup instructions.";
-        console.error("OpenWeatherMap API key is not configured!");
+        if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+            errorEl.innerHTML = `
+                ⚠️ API key not configured. 
+                <br><small>Open browser console and run: <code>localStorage.setItem('openweathermap_key', 'YOUR_KEY')</code></small>
+            `;
+            console.error("OpenWeatherMap API key is not configured!");
+            return false;
+        }
+        return true;
     }
+    
+    validateApiKey();
     
     const REFRESH_INTERVAL_MS = 1 * 60 * 1000; // 1 minute auto-refresh loop
     let lastCity = ""; 
@@ -168,14 +186,21 @@
         errorEl.innerText = "";
         status.innerText = "FETCHING..."; 
         
+        // Validate input
+        if (!city || city.trim().length === 0) {
+            errorEl.innerText = "❌ Please enter a valid city name";
+            status.innerText = "READY";
+            return;
+        }
+        
         try {
             // Validate API key before making request
             if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
-                throw new Error("API key not configured");
+                throw new Error("API key not configured. Set it using localStorage.setItem('openweathermap_key', 'YOUR_KEY')");
             }
             
             // Step A: Fetch current conditions to fill the main view block
-            const currentResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`); 
+            const currentResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`); 
             if (!currentResponse.ok) {
                 throw new Error(`City not found or API error: ${currentResponse.status}`);
             }
@@ -205,7 +230,7 @@
             iconEl.innerText = getWeatherEmoji(mainCondition);
 
             // Step B: Fetch future timeline data to populate the hourly blocks automatically
-            const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`);
+            const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`);
             if (forecastResponse.ok) {
                 const forecastData = await forecastResponse.json();
                 const hourlyContainer = document.getElementById('hourlyContainer');
@@ -271,7 +296,9 @@
                 lastCity = city; 
                 updateWeather(city); 
                 startAutoRefresh(city); 
-            } 
+            } else {
+                document.getElementById('errorMsg').innerText = "❌ Please enter a city name";
+            }
         } 
     } 
 </script> 
