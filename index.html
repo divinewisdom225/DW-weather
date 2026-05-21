@@ -32,8 +32,11 @@
         /* Input & Clock Header */
         .card-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 16px; }
         #clock { font-size: 1.2rem; color: #00f2fe; font-weight: 600; margin-bottom: 10px; } 
-        input { width: 100%; padding: 10px 18px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; text-align: center; font-size: 14px; outline: none; transition: 0.3s; } 
+        input { width: 100%; padding: 10px 18px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; text-align: center; font-size: 14px; outline: none; transition: all 0.3s ease; }
         input:focus { background: rgba(255,255,255,0.1); border-color: #00f2fe; }
+        
+        /* Error message styling */
+        .error-message { font-size: 12px; color: #ff6b6b; text-align: center; margin-top: 8px; }
 
         /* Location Subtitle */
         .location-sub { font-size: 15px; color: #c4c7c5; margin-bottom: 12px; text-align: left; font-weight: 500; }
@@ -75,6 +78,7 @@
             <div class="card-header">
                 <div id="clock">00:00:00</div> 
                 <input type="text" id="cityInput" placeholder="Search city..." onkeypress="handleSearch(event)"> 
+                <div id="errorMsg" class="error-message"></div>
             </div>
 
             <div id="locationHeader" class="location-sub">Enter a city to begin</div>
@@ -107,7 +111,16 @@
         </div> 
     </div> 
 <script> 
-    const apiKey = "15ef46d9ff8e9782d01c408ca831a3df"; 
+    // Get API key from environment variable or show error
+    const apiKey = "YOUR_API_KEY_HERE"; // Replace with environment variable in production
+    
+    // Validate API key
+    if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+        const errorEl = document.getElementById('errorMsg');
+        errorEl.innerText = "⚠️ API key not configured. Check setup instructions.";
+        console.error("OpenWeatherMap API key is not configured!");
+    }
+    
     const REFRESH_INTERVAL_MS = 1 * 60 * 1000; // 1 minute auto-refresh loop
     let lastCity = ""; 
     let refreshTimer = null; 
@@ -142,7 +155,8 @@
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }); 
             document.getElementById('webcam').srcObject = stream; 
         } catch (err) { 
-            console.log("Camera access denied"); 
+            console.warn("Camera access denied or not available:", err.message); 
+            // Don't show alert to user - camera is optional
         } 
     } 
     startCamera(); 
@@ -150,11 +164,21 @@
     // 3. CORE PROCESSING LOGIC (Google Style)
     async function updateWeather(city) { 
         const status = document.getElementById('status'); 
+        const errorEl = document.getElementById('errorMsg');
+        errorEl.innerText = "";
         status.innerText = "FETCHING..."; 
+        
         try {
+            // Validate API key before making request
+            if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+                throw new Error("API key not configured");
+            }
+            
             // Step A: Fetch current conditions to fill the main view block
             const currentResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`); 
-            if (!currentResponse.ok) throw new Error(); 
+            if (!currentResponse.ok) {
+                throw new Error(`City not found or API error: ${currentResponse.status}`);
+            }
             const currentData = await currentResponse.json(); 
             
             // Build dynamic header tracking text (e.g. Thursday • Ibadan)
@@ -188,14 +212,15 @@
                 hourlyContainer.innerHTML = ""; // Wipe the fallback cards clean
 
                 // Take the first 4 timeline blocks (spaced out by 3 hours each from OpenWeather)
-                for (let i = 0; i < 4; i++) {
+                const forecastCount = Math.min(4, forecastData.list.length);
+                for (let i = 0; i < forecastCount; i++) {
                     const block = forecastData.list[i];
                     const futureTime = new Date(block.dt * 1000).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
                     const futureTemp = Math.round(block.main.temp);
                     const futureCond = block.weather[0].main;
                     
                     // OpenWeather uses 'pop' (Probability of Precipitation) values from 0 to 1.
-                    const rainProbability = block.pop ? Math.round(block.pop * 1000) / 10 : 0; 
+                    const rainProbability = block.pop ? Math.round(block.pop * 100) : 0; 
 
                     // Construct a Google-accurate HTML element layout dynamically
                     const itemHTML = `
@@ -208,11 +233,15 @@
                     `;
                     hourlyContainer.innerHTML += itemHTML;
                 }
+            } else {
+                console.error("Forecast API error:", forecastResponse.status);
             }
 
             showRefreshBar(); 
         } catch (e) { 
-            status.innerText = "ERROR FETCHING WEATHER"; 
+            status.innerText = "ERROR"; 
+            errorEl.innerText = `❌ ${e.message}`;
+            console.error("Weather update error:", e);
         } 
     } 
 
