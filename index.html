@@ -188,6 +188,43 @@
     let forecastData = null;
     let currentForecastTab = 0; // 0 = Temperature, 1 = Precipitation, 2 = Wind
 
+    // ===== PERSISTENT STORAGE FUNCTIONS =====
+    function saveToStorage(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {
+            console.warn("LocalStorage save failed:", e);
+        }
+    }
+
+    function getFromStorage(key) {
+        try {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        } catch (e) {
+            console.warn("LocalStorage read failed:", e);
+            return null;
+        }
+    }
+
+    function saveWeatherData(city, data) {
+        const weatherData = {
+            city: city,
+            data: data,
+            timestamp: Date.now()
+        };
+        saveToStorage('dwWeather_' + city, weatherData);
+        saveToStorage('dwWeather_lastCity', city);
+    }
+
+    function getWeatherData(city) {
+        return getFromStorage('dwWeather_' + city);
+    }
+
+    function getLastCity() {
+        return getFromStorage('dwWeather_lastCity');
+    }
+
     // Comprehensive weather emoji mapping
     function getWeatherEmoji(condition, iconCode) {
         // Use OpenWeather icon codes for more accuracy
@@ -236,7 +273,7 @@
     startCamera(); 
 
     // 3. CORE PROCESSING LOGIC
-    async function updateWeather(city) { 
+    async function updateWeather(city, fromStorage = false) { 
         const status = document.getElementById('status'); 
         const errorEl = document.getElementById('errorMsg');
         errorEl.innerText = "";
@@ -253,6 +290,16 @@
                 throw new Error("API key not configured");
             }
             
+            // Check storage first if requested
+            if (fromStorage) {
+                const cachedData = getWeatherData(city);
+                if (cachedData && (Date.now() - cachedData.timestamp) < 3600000) { // 1 hour cache
+                    displayWeatherData(cachedData.data, city);
+                    document.getElementById('refreshLabel').innerText = `📦 Loaded from cache • Auto-refresh every 10 min`;
+                    return;
+                }
+            }
+            
             // Fetch current weather
             const currentResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`); 
             if (!currentResponse.ok) {
@@ -260,61 +307,74 @@
             }
             const currentData = await currentResponse.json(); 
             
-            // Build dynamic header
-            const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-            document.getElementById('locationHeader').innerText = `${currentDayName} • ${currentData.name}`; 
-            
-            // Set main temperatures
-            document.getElementById('tempVal').innerText = Math.round(currentData.main.temp); 
-            document.getElementById('hiLow').innerText = `High: ${Math.round(currentData.main.temp_max)}° Low: ${Math.round(currentData.main.temp_min)}°`;
-
-            const mainCondition = currentData.weather[0].main;
-            const mainIcon = currentData.weather[0].icon;
-            const description = currentData.weather[0].description;
-            const iconEl = document.getElementById('mainIcon');
-
-            // Set condition text
-            if (mainCondition === "Thunderstorm") {
-                status.innerText = "Thunderstorm";
-                iconEl.style.animation = "shake 0.3s infinite";
-            } else if (mainCondition === "Rain" || mainCondition === "Drizzle") {
-                status.innerText = "Rain";
-                iconEl.style.animation = "rain 1s infinite";
-            } else if (mainCondition === "Clouds") {
-                status.innerText = "Cloudy";
-                iconEl.style.animation = "float 3s ease-in-out infinite";
-            } else if (mainCondition === "Clear") {
-                status.innerText = "Clear";
-                iconEl.style.animation = "float 3s ease-in-out infinite";
-            } else if (mainCondition === "Snow") {
-                status.innerText = "Snow";
-                iconEl.style.animation = "float 3s ease-in-out infinite";
-            } else {
-                status.innerText = mainCondition;
-                iconEl.style.animation = "float 3s ease-in-out infinite";
-            }
-            
-            // Set emoji with icon code
-            iconEl.innerText = getWeatherEmoji(mainCondition, mainIcon);
-            document.getElementById('refreshLabel').innerText = `✓ Updated just now • Auto-refresh every 10 min`;
-
             // Fetch forecast data
             const forecastResponse = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&_=${new Date().getTime()}`);
-            if (forecastResponse.ok) {
-                forecastData = await forecastResponse.json();
-                displayForecast(currentForecastTab);
-                display14DayForecast();
-            } else {
-                console.error("Forecast API error:", forecastResponse.status);
+            if (!forecastResponse.ok) {
+                throw new Error("Forecast API error");
             }
+            const forecastDataResponse = await forecastResponse.json();
 
-            status.innerText = mainCondition;
+            // Save to storage
+            const allData = { current: currentData, forecast: forecastDataResponse };
+            saveWeatherData(city, allData);
+
+            // Display the data
+            displayWeatherData(allData, city);
+            
+            status.innerText = currentData.weather[0].main;
         } catch (e) { 
             status.innerText = "ERROR"; 
             errorEl.innerText = `❌ ${e.message}`;
             console.error("Weather update error:", e);
         } 
-    } 
+    }
+
+    function displayWeatherData(allData, city) {
+        const currentData = allData.current;
+        const forecastDataResponse = allData.forecast;
+
+        // Build dynamic header
+        const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+        document.getElementById('locationHeader').innerText = `${currentDayName} • ${currentData.name}`; 
+        
+        // Set main temperatures
+        document.getElementById('tempVal').innerText = Math.round(currentData.main.temp); 
+        document.getElementById('hiLow').innerText = `High: ${Math.round(currentData.main.temp_max)}° Low: ${Math.round(currentData.main.temp_min)}°`;
+
+        const mainCondition = currentData.weather[0].main;
+        const mainIcon = currentData.weather[0].icon;
+        const iconEl = document.getElementById('mainIcon');
+
+        // Set condition and animation
+        if (mainCondition === "Thunderstorm") {
+            document.getElementById('status').innerText = "Thunderstorm";
+            iconEl.style.animation = "shake 0.3s infinite";
+        } else if (mainCondition === "Rain" || mainCondition === "Drizzle") {
+            document.getElementById('status').innerText = "Rain";
+            iconEl.style.animation = "rain 1s infinite";
+        } else if (mainCondition === "Clouds") {
+            document.getElementById('status').innerText = "Cloudy";
+            iconEl.style.animation = "float 3s ease-in-out infinite";
+        } else if (mainCondition === "Clear") {
+            document.getElementById('status').innerText = "Clear";
+            iconEl.style.animation = "float 3s ease-in-out infinite";
+        } else if (mainCondition === "Snow") {
+            document.getElementById('status').innerText = "Snow";
+            iconEl.style.animation = "float 3s ease-in-out infinite";
+        } else {
+            document.getElementById('status').innerText = mainCondition;
+            iconEl.style.animation = "float 3s ease-in-out infinite";
+        }
+        
+        // Set emoji
+        iconEl.innerText = getWeatherEmoji(mainCondition, mainIcon);
+        document.getElementById('refreshLabel').innerText = `✓ Updated just now • Auto-refresh every 10 min`;
+
+        // Store forecast and display
+        forecastData = forecastDataResponse;
+        displayForecast(currentForecastTab);
+        display14DayForecast();
+    }
 
     // Display hourly forecast based on selected tab
     function displayForecast(tab) {
@@ -432,7 +492,17 @@
                 document.getElementById('errorMsg').innerText = "❌ Please enter a city name";
             }
         } 
-    } 
+    }
+
+    // ===== LOAD LAST CITY ON PAGE LOAD =====
+    window.addEventListener('DOMContentLoaded', function() {
+        const lastCity = getLastCity();
+        if (lastCity) {
+            document.getElementById('cityInput').value = lastCity;
+            updateWeather(lastCity, true); // Load from cache if available
+            startAutoRefresh(lastCity);
+        }
+    });
 </script> 
 </body> 
 </html>
